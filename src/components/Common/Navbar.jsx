@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { AiOutlineMenu, AiOutlineShoppingCart } from "react-icons/ai"
 import { BsChevronDown } from "react-icons/bs"
 import { useSelector } from "react-redux"
@@ -10,25 +10,7 @@ import { apiConnector } from "../../services/apiConnector"
 import { categories } from "../../services/apis"
 import { ACCOUNT_TYPE } from "../../utils/constants"
 import ProfileDropdown from "../core/Auth/ProfileDropdown"
-
-// const subLinks = [
-//   {
-//     title: "Python",
-//     link: "/catalog/python",
-//   },
-//   {
-//     title: "javascript",
-//     link: "/catalog/javascript",
-//   },
-//   {
-//     title: "web-development",
-//     link: "/catalog/web-development",
-//   },
-//   {
-//     title: "Android Development",
-//     link: "/catalog/Android Development",
-//   },
-// ];
+import useOnClickOutside from "../../hooks/useOnClickOutside"
 
 function Navbar() {
   const { token } = useSelector((state) => state.auth)
@@ -38,6 +20,15 @@ function Navbar() {
 
   const [subLinks, setSubLinks] = useState([])
   const [loading, setLoading] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false) // State for mobile menu toggle
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false) // State for dropdown toggle
+  const dropdownRef = useRef(null) // Ref for the dropdown
+
+  // Close both dropdown and mobile menu on outside click
+  useOnClickOutside(dropdownRef, () => {
+    setIsDropdownOpen(false)
+    setIsMenuOpen(false)
+  })
 
   useEffect(() => {
     ;(async () => {
@@ -51,8 +42,6 @@ function Navbar() {
       setLoading(false)
     })()
   }, [])
-
-  // console.log("sub links", subLinks)
 
   const matchRoute = (route) => {
     return matchPath({ path: route }, location.pathname)
@@ -70,50 +59,53 @@ function Navbar() {
           <img src={logo} alt="Logo" width={160} height={32} loading="lazy" />
         </Link>
         {/* Navigation links */}
-        <nav className="hidden md:block">
+        <nav className="hidden md:flex">
           <ul className="flex gap-x-6 text-richblack-25">
             {NavbarLinks.map((link, index) => (
               <li key={index}>
                 {link.title === "Catalog" ? (
-                  <>
-                    <div
-                      className={`group relative flex cursor-pointer items-center gap-1 ${
-                        matchRoute("/catalog/:catalogName")
-                          ? "text-yellow-25"
-                          : "text-richblack-25"
-                      }`}
-                    >
-                      <p>{link.title}</p>
-                      <BsChevronDown />
-                      <div className="invisible absolute left-[50%] top-[50%] z-[1000] flex w-[200px] translate-x-[-50%] translate-y-[3em] flex-col rounded-lg bg-richblack-5 p-4 text-richblack-900 opacity-0 transition-all duration-150 group-hover:visible group-hover:translate-y-[1.65em] group-hover:opacity-100 lg:w-[300px]">
+                  <div
+                    className={`relative flex cursor-pointer items-center gap-1 ${
+                      matchRoute("/catalog/:catalogName")
+                        ? "text-yellow-25"
+                        : "text-richblack-25"
+                    }`}
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  >
+                    <p>{link.title}</p>
+                    <BsChevronDown />
+                    {isDropdownOpen && (
+                      <div
+                        ref={dropdownRef}
+                        className="absolute left-[50%] top-[120%] z-[1000] flex w-[200px] translate-x-[-50%] flex-col rounded-lg bg-richblack-5 p-4 text-richblack-900 lg:w-[300px]"
+                      >
                         <div className="absolute left-[50%] top-0 -z-10 h-6 w-6 translate-x-[80%] translate-y-[-40%] rotate-45 select-none rounded bg-richblack-5"></div>
                         {loading ? (
                           <p className="text-center">Loading...</p>
                         ) : subLinks.length ? (
-                          <>
-                            {subLinks
-                              ?.filter(
-                                (subLink) => subLink?.courses?.length > 0
-                              )
-                              ?.map((subLink, i) => (
-                                <Link
-                                  to={`/catalog/${subLink.name
-                                    .split(" ")
-                                    .join("-")
-                                    .toLowerCase()}`}
-                                  className="rounded-lg bg-transparent py-4 pl-4 hover:bg-richblack-50"
-                                  key={i}
-                                >
-                                  <p>{subLink.name}</p>
-                                </Link>
-                              ))}
-                          </>
+                          subLinks
+                            ?.filter(
+                              (subLink) => subLink?.courses?.length > 0
+                            )
+                            ?.map((subLink, i) => (
+                              <Link
+                                to={`/catalog/${subLink.name
+                                  .split(" ")
+                                  .join("-")
+                                  .toLowerCase()}`}
+                                className="rounded-lg bg-transparent py-4 pl-4 hover:bg-richblack-50"
+                                key={i}
+                                onClick={() => setIsDropdownOpen(false)} // Close dropdown on link click
+                              >
+                                <p>{subLink.name}</p>
+                              </Link>
+                            ))
                         ) : (
                           <p className="text-center">No Courses Found</p>
                         )}
                       </div>
-                    </div>
-                  </>
+                    )}
+                  </div>
                 ) : (
                   <Link to={link?.path}>
                     <p
@@ -144,25 +136,117 @@ function Navbar() {
             </Link>
           )}
           {token === null && (
-            <Link to="/login">
-              <button className="rounded-[8px] border border-richblack-700 bg-richblack-800 px-[12px] py-[8px] text-richblack-100">
-                Log in
-              </button>
-            </Link>
-          )}
-          {token === null && (
-            <Link to="/signup">
-              <button className="rounded-[8px] border border-richblack-700 bg-richblack-800 px-[12px] py-[8px] text-richblack-100">
-                Sign up
-              </button>
-            </Link>
+            <>
+              <Link to="/login">
+                <button className="rounded-[8px] border border-richblack-700 bg-richblack-800 px-[12px] py-[8px] text-richblack-100">
+                  Log in
+                </button>
+              </Link>
+              <Link to="/signup">
+                <button className="rounded-[8px] border border-richblack-700 bg-richblack-800 px-[12px] py-[8px] text-richblack-100">
+                  Sign up
+                </button>
+              </Link>
+            </>
           )}
           {token !== null && <ProfileDropdown />}
         </div>
-        <button className="mr-4 md:hidden">
+        {/* Mobile Menu Button */}
+        <button
+          className="mr-4 md:hidden"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+        >
           <AiOutlineMenu fontSize={24} fill="#AFB2BF" />
         </button>
       </div>
+
+      {/* Mobile Dropdown Menu */}
+      {isMenuOpen && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-14 right-2 z-50 flex flex-col items-center bg-richblack-800 p-4 md:hidden gap-x-1 py-[10px] px-[12px] text-sm text-richblack-100 hover:bg-richblack-700 hover:text-richblack-25 divide-y-[1px] divide-richblack-700 overflow-hidden rounded-md border-[1px] border-richblack-700 "
+        >
+          <Link to="/" className="py-2" onClick={() => setIsMenuOpen(false)}>
+            Home
+          </Link>
+          <div
+            className="flex items-center justify-between w-full py-2"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <span>Catalog</span>
+            <BsChevronDown />
+          </div>
+          {isDropdownOpen && (
+            <div className="flex flex-col w-full py-2 pl-4">
+              {loading ? (
+                <p className="text-center">Loading...</p>
+              ) : subLinks.length ? (
+                subLinks
+                  ?.filter((subLink) => subLink?.courses?.length > 0)
+                  ?.map((subLink, i) => (
+                    <Link
+                      to={`/catalog/${subLink.name
+                        .split(" ")
+                        .join("-")
+                        .toLowerCase()}`}
+                      className="py-2"
+                      key={i}
+                      onClick={() => {
+                        setIsDropdownOpen(false)
+                        setIsMenuOpen(false)
+                      }} // Close dropdown and menu on link click
+                    >
+                      {subLink.name}
+                    </Link>
+                  ))
+              ) : (
+                <p className="text-center">No Courses Found</p>
+              )}
+            </div>
+          )}
+          <Link
+            to="/about"
+            className="py-2"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            About Us
+          </Link>
+          <Link
+            to="/contact"
+            className="py-2"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Contact Us
+          </Link>
+          {token === null && (
+            <>
+              <Link
+                to="/login"
+                className="py-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Log in
+              </Link>
+              <Link
+                to="/signup"
+                className="py-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Sign up
+              </Link>
+            </>
+          )}
+          {token !== null && (
+            <Link
+              to="/dashboard/my-profile"
+              className="py-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   )
 }
